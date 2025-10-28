@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB部署工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 自定义标题栏 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-region">
+            <div class="window-title">
+                <img class="app-icon" src="assets/SQL图标.ico" width="16" height="16" alt="SQL图标">
+                DB部署工具
+            </div>
+        </div>
+        <div class="window-controls">
+            <button class="window-control minimize" id="minimize-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <rect fill="currentColor" width="10" height="1" x="1" y="6"/>
+                </svg>
+            </button>
+            <button class="window-control maximize" id="maximize-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <rect fill="currentColor" width="9" height="9" x="1.5" y="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </svg>
+            </button>
+            <button class="window-control close" id="close-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <polygon fill="currentColor" points="11,1.5 10.5,1 6,5.5 1.5,1 1,1.5 5.5,6 1,10.5 1.5,11 6,6.5 10.5,11 11,10.5 6.5,6"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <!-- 目录选择区域 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>项目目录</h3>
+                    <div class="directory-controls">
+                        <button class="btn btn-primary" id="select-dir-btn">选择目录</button>
+                        <button class="btn btn-secondary" id="refresh-dir-btn" disabled title="刷新目录">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path fill="currentColor" d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="directory-info" id="directory-info">
+                    <div class="no-directory">请选择包含SQL文件的根目录</div>
+                </div>
+            </div>
+
+            <!-- SQL文件列表 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>SQL文件</h3>
+                    <div class="sql-files-controls">
+                        <div class="file-count" id="file-count">0 个文件夹</div>
+                        <button class="btn btn-success btn-sm" id="move-all-btn" disabled title="将所有文件夹移动到部署队列">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z M8,12V14H16V12H8M8,16V18H13V16H8Z"/>
+                            </svg>
+                            全部移动
+                        </button>
+                    </div>
+                </div>
+                <div class="file-tree" id="file-tree">
+                    <!-- 动态生成的文件树 -->
+                </div>
+            </div>
+
+            <!-- 数据库连接按钮 -->
+            <div class="section">
+                <div class="section-header">
+                    <h3>数据库连接</h3>
+                    <button class="btn btn-secondary" id="db-config-btn">配置连接</button>
+                </div>
+                <div class="connection-info" id="connection-info">
+                    <div class="connection-status">
+                        <div class="status-indicator disconnected"></div>
+                        <span>未连接</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据库连接功能已移除 -->
+        </div>
+
+        <!-- 主工作区 -->
+        <div class="main-content">
+            <!-- 部署区域 -->
+            <div class="deployment-area">
+                <div class="section-header">
+                    <h3>部署队列</h3>
+                    <div class="deployment-controls">
+                        <button class="btn btn-secondary" id="clear-queue-btn">清空队列</button>
+                        <button id="openSchemaParserBtn" class="btn btn-info">表结构解析器</button>
+                        <button class="btn btn-primary" id="open-auto-create-table-btn">生成建表</button>
+                        <button class="btn btn-warning" id="generate-reverse-btn" disabled>生成逆向脚本</button>
+                        <button class="btn btn-success" id="start-deployment-btn" disabled>开始部署</button>
+                    </div>
+                </div>
+                <div class="deployment-queue" id="deployment-queue">
+                    <div class="queue-placeholder">
+                        <svg viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"/>
+                        </svg>
+                        <p>将SQL文件夹拖拽到此处进行部署</p>
+                        <p class="hint">支持拖拽排序，按顺序执行</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志区域 -->
+            <div class="log-area">
+                <div class="section-header">
+                    <h3>执行日志</h3>
+                    <div class="log-controls">
+                        <div class="skip-error-option">
+                            <input type="checkbox" id="skip-error-checkbox" name="skipError">
+                            <label for="skip-error-checkbox">跳过报错继续执行</label>
+                        </div>
+                        <button class="btn btn-secondary" id="clear-log-btn">清空日志</button>
+                    </div>
+                </div>
+                
+                <!-- 执行进度条 -->
+                <div class="progress-section" id="progress-section" style="display: none;">
+                    <div class="progress-info">
+                        <span class="progress-text" id="progress-text">准备执行...</span>
+                        <span class="progress-percentage" id="progress-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="log-container" id="log-container">
+                    <div class="log-placeholder">
+                        <svg viewBox="0 0 24 24" width="32" height="32">
+                            <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                        </svg>
+                        <p>执行日志将在此处显示</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据库配置弹窗 -->
+    <div class="modal" id="db-config-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>数据库连接配置</h3>
+                <button class="modal-close" id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="db-config-form">
+                    <div class="form-group">
+                        <label for="db-type">数据库类型</label>
+                        <select id="db-type" name="dbType">
+                            <option value="postgresql">PostgreSQL</option>
+                            <option value="mysql">MySQL</option>
+                            <option value="oracle">Oracle</option>
+                            <option value="sqlserver">SQL Server</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="db-host">主机地址</label>
+                        <input type="text" id="db-host" name="host" value="localhost" placeholder="localhost">
+                    </div>
+                    <div class="form-group">
+                        <label for="db-port">端口</label>
+                        <input type="number" id="db-port" name="port" value="5432" placeholder="5432">
+                    </div>
+                    <div class="form-group">
+                        <label for="db-name">数据库名称</label>
+                        <input type="text" id="db-name" name="database" placeholder="数据库名称">
+                    </div>
+                    <div class="form-group">
+                        <label for="db-user">用户名</label>
+                        <input type="text" id="db-user" name="user" placeholder="用户名">
+                    </div>
+                    <div class="form-group">
+                        <label for="db-password">密码</label>
+                        <input type="password" id="db-password" name="password" placeholder="密码">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="save-config" name="saveConfig"> 保存配置
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="test-connection-modal-btn">测试连接</button>
+                <button class="btn btn-primary" id="connect-db-btn">连接</button>
+                <button class="btn btn-default" id="cancel-connection-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 逆向脚本预览模态窗口 -->
+    <div class="modal" id="reverse-script-modal">
+        <div class="modal-content reverse-modal">
+            <div class="modal-header">
+                <h3>逆向SQL脚本预览</h3>
+                <span class="close" id="close-reverse-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="reverse-script-info">
+                    <p class="info-text">以下是根据部署队列自动生成的逆向SQL脚本：</p>
+                    <div class="script-stats" id="reverse-script-stats">
+                        <span class="stat-item">文件夹数: <strong id="folder-count">0</strong></span>
+                        <span class="stat-item">脚本数: <strong id="script-count">0</strong></span>
+                        <span class="stat-item">生成时间: <strong id="generation-time">-</strong></span>
+                    </div>
+                </div>
+                <div class="script-preview-container">
+                    <textarea id="reverse-script-preview" readonly placeholder="逆向脚本将在此处显示..."></textarea>
+                </div>
+                <div class="script-warning">
+                    <div class="warning-icon">⚠️</div>
+                    <div class="warning-text">
+                        <strong>重要提醒：</strong>
+                        <ul>
+                            <li>生成逻辑可能存在缺陷，自行验证逆向脚本的正确性</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="export-reverse-script-btn">导出到文件</button>
+                <button class="btn btn-secondary" id="copy-reverse-script-btn">复制到剪贴板</button>
+                <button class="btn btn-default" id="close-reverse-preview-btn">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="reverse-sql-generator.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>

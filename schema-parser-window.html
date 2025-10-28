@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表结构解析器</title>
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #cccccc;
+            overflow: hidden;
+        }
+
+        /* 标题栏 */
+        .titlebar {
+            height: 32px;
+            background-color: #2d2d30;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .titlebar-drag-region {
+            flex: 1;
+            height: 100%;
+            -webkit-app-region: drag;
+            display: flex;
+            align-items: center;
+            padding-left: 12px;
+        }
+
+        .window-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+
+        .app-icon {
+            color: #007acc;
+        }
+
+        .window-controls {
+            display: flex;
+            height: 100%;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-control {
+            width: 46px;
+            height: 100%;
+            border: none;
+            background: transparent;
+            color: #cccccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .window-control:hover {
+            background-color: #3e3e42;
+        }
+
+        .window-control.close:hover {
+            background-color: #e81123;
+            color: white;
+        }
+
+        /* 主容器 */
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 32px);
+            background-color: #1e1e1e;
+        }
+
+        /* 内容区域 */
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #1e1e1e;
+        }
+
+        /* 区块样式 */
+        .section {
+            background-color: #252526;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #3e3e42;
+        }
+
+        .section h3 {
+            color: #cccccc;
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 表单组样式 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #cccccc;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #3e3e42;
+            border-radius: 3px;
+            background-color: #2d2d30;
+            color: #cccccc;
+            font-size: 12px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 0 1px #007acc;
+        }
+
+        /* 按钮组样式 */
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: #007acc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #005a9e;
+        }
+
+        .btn-secondary {
+            background-color: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid #5a5a5a;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4a4a4a;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 进度条区域 */
+        .progress-section {
+            display: none;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #3e3e42;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #007acc;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* 日志区域 */
+        .log-area {
+            background-color: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            padding: 12px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #cccccc;
+        }
+
+        /* 结果区域 */
+        .results-section {
+            display: none;
+        }
+
+        /* 统计卡片 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background-color: #2d2d30;
+            color: #cccccc;
+            padding: 16px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid #3e3e42;
+        }
+
+        .stat-card h4 {
+            font-size: 11px;
+            margin-bottom: 8px;
+            color: #858585;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007acc;
+        }
+
+        /* 表列表样式 */
+        .table-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .table-list-header h3 {
+            margin: 0;
+        }
+
+        .collapse-btn {
+            background: transparent;
+            border: 1px solid #3e3e42;
+            color: #cccccc;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .collapse-btn:hover {
+            background-color: #3e3e42;
+            border-color: #007acc;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease;
+            font-size: 10px;
+        }
+
+        .collapse-btn.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .table-list {
+            background: #2d2d30;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .table-list.collapsed {
+            max-height: 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            border: none;
+        }
+
+        .table-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #3e3e42;
+            transition: background-color 0.2s ease;
+        }
+
+        .table-item:last-child {
+            border-bottom: none;
+        }
+
+        .table-item:hover {
+            background-color: #37373d;
+        }
+
+        .table-name {
+            font-weight: 500;
+            color: #cccccc;
+            font-size: 12px;
+        }
+
+        .table-schema {
+            color: #858585;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        .column-count {
+            background-color: #007acc;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        /* JSON预览 */
+        .json-preview {
+            background: #2d2d30;
+            color: #cccccc;
+            border-radius: 4px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid #3e3e42;
+        }
+
+        /* 滚动条样式 */
+        .log-area::-webkit-scrollbar,
+        .table-list::-webkit-scrollbar,
+        .json-preview::-webkit-scrollbar,
+        .content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-area::-webkit-scrollbar-track,
+        .table-list::-webkit-scrollbar-track,
+        .json-preview::-webkit-scrollbar-track,
+        .content::-webkit-scrollbar-track {
+            background: #2d2d30;
+            border-radius: 4px;
+        }
+
+        .log-area::-webkit-scrollbar-thumb,
+        .table-list::-webkit-scrollbar-thumb,
+        .json-preview::-webkit-scrollbar-thumb,
+        .content::-webkit-scrollbar-thumb {
+            background: #4a4a4a;
+            border-radius: 4px;
+        }
+
+        .log-area::-webkit-scrollbar-thumb:hover,
+        .table-list::-webkit-scrollbar-thumb:hover,
+        .json-preview::-webkit-scrollbar-thumb:hover,
+        .content::-webkit-scrollbar-thumb:hover {
+            background: #5a5a5a;
+        }
+    </style>
+</head>
+<body>
+    <!-- 自定义标题栏 -->
+    <div class="titlebar">
+        <div class="titlebar-drag-region">
+            <div class="window-title">
+                <svg class="app-icon" viewBox="0 0 24 24" width="16" height="16">
+                    <path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                </svg>
+                表结构解析器
+            </div>
+        </div>
+        <div class="window-controls">
+            <button class="window-control minimize" id="minimize-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <rect fill="currentColor" width="10" height="1" x="1" y="6"/>
+                </svg>
+            </button>
+            <button class="window-control maximize" id="maximize-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <rect fill="currentColor" width="9" height="9" x="1.5" y="1.5" stroke="currentColor" stroke-width="1" fill="none"/>
+                </svg>
+            </button>
+            <button class="window-control close" id="close-btn">
+                <svg viewBox="0 0 12 12" width="12" height="12">
+                    <polygon fill="currentColor" points="11,1.5 10.5,1 6,5.5 1.5,1 1,1.5 5.5,6 1,10.5 1.5,11 6,6.5 10.5,11 11,10.5 6.5,6"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="container">
+        <!-- 内容区域 -->
+        <div class="content">
+            <!-- 配置区域 -->
+            <div class="section">
+                <h3>仓库配置</h3>
+                <div class="form-group">
+                    <label for="folderPath">仓库路径</label>
+                    <input type="text" id="folderPath" placeholder="选择包含SQL文件的仓库路径" readonly>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="selectFolderBtn">选择仓库</button>
+                    <button class="btn btn-success" id="startParseBtn" disabled>开始解析</button>
+                </div>
+            </div>
+
+            <!-- 进度区域 -->
+            <div class="progress-section" id="progressSection">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <!-- 日志区域 -->
+            <div class="section">
+                <h3>解析日志</h3>
+                <div class="log-area" id="logArea">
+                    <!-- 日志内容将在这里显示 -->
+                </div>
+            </div>
+
+            <!-- 结果区域 -->
+            <div class="results-section" id="resultsSection">
+                <div class="section">
+                    <h3>解析结果</h3>
+                    
+                    <!-- 统计信息 -->
+                    <div class="stats">
+                        <div class="stat-card">
+                            <h4>表数量</h4>
+                            <div class="number" id="tableCount">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>视图数量</h4>
+                            <div class="number" id="viewCount">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>字段数量</h4>
+                            <div class="number" id="columnCount">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>文件数量</h4>
+                            <div class="number" id="fileCount">0</div>
+                        </div>
+                    </div>
+
+                    <!-- 表列表 -->
+                    <div class="table-list-header">
+                        <h3>表列表</h3>
+                        <button class="collapse-btn" id="tableListCollapseBtn">
+                            <span class="collapse-icon">▼</span>
+                        </button>
+                    </div>
+                    <div class="table-list" id="tableList">
+                        <!-- 表列表将在这里显示 -->
+                    </div>
+
+                    <!-- 视图列表 -->
+                    <div class="table-list-header">
+                        <h3>视图列表</h3>
+                        <button class="collapse-btn" id="viewListCollapseBtn">
+                            <span class="collapse-icon">▼</span>
+                        </button>
+                    </div>
+                    <div class="table-list" id="viewList">
+                        <!-- 视图列表将在这里显示 -->
+                    </div>
+
+                    <!-- JSON数据预览 -->
+                    <h3>JSON数据预览</h3>
+                    <div class="json-preview" id="jsonPreview">
+                        <!-- JSON数据将在这里显示 -->
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="btn-group">
+                        <button class="btn btn-success" id="saveJsonBtn">保存JSON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="schema-parser-renderer.js"></script>
+</body>
+</html>

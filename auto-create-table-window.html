@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>建表</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background:#1e1e1e; color:#ccc; margin:0; }
+        .titlebar { height:32px; background:#2d2d30; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #3e3e42; }
+        .titlebar-drag-region { flex:1; height:100%; -webkit-app-region:drag; display:flex; align-items:center; padding-left:12px; }
+        .window-title { display:flex; align-items:center; gap:8px; font-size:12px; color:#ccc; }
+        .window-controls { display:flex; height:100%; -webkit-app-region:no-drag; }
+        .window-control { width:46px; height:100%; border:none; background:transparent; color:#ccc; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .window-control:hover { background:#3e3e42; }
+        .window-control.close:hover { background:#e81123; color:#fff; }
+
+        .container { display:flex; flex-direction:column; height:calc(100vh - 32px); }
+        .content { flex:1; padding:16px; overflow:hidden; }
+        .workspace { display:grid; grid-template-columns: 440px 1fr; gap:12px; height:100%; }
+        .left-pane { display:flex; flex-direction:column; gap:12px; overflow:auto; }
+        .right-pane { display:flex; flex-direction:column; gap:12px; overflow:auto; }
+        .sql-panel { display:flex; flex-direction:column; height:100%; }
+        .section { background:#252526; border:1px solid #3e3e42; border-radius:4px; padding:14px; margin-bottom:12px; }
+        .section h3 { font-size:14px; margin-bottom:10px; color:#ccc; }
+        .btn { border:none; border-radius:4px; padding:8px 12px; cursor:pointer; font-size:12px; }
+        .btn-primary { background:#007acc; color:#fff; }
+        .btn-secondary { background:#3e3e42; color:#fff; }
+        .btn-success { background:#22aa77; color:#fff; }
+        .btn-group { display:flex; gap:8px; align-items:center; }
+        .input { width:100%; background:#2d2d30; color:#ccc; border:1px solid #3e3e42; border-radius:4px; padding:8px; font-size:12px; }
+        .row { display:grid; grid-template-columns: 180px 1fr; gap:12px; align-items:center; margin-bottom:10px; }
+        select.inline { background:#2d2d30; color:#ccc; border:1px solid #3e3e42; border-radius:4px; padding:4px 6px; font-size:12px; }
+        .sql-preview { background:#2d2d30; color:#ccc; border:1px solid #3e3e42; border-radius:4px; padding:12px; font-family: 'Courier New', monospace; white-space:pre; min-height:240px; flex:1; }
+        .warn { color:#f5c518; font-size:12px; }
+        .small { font-size:11px; color:#aaa; }
+        .inline-group { display:flex; gap:8px; align-items:center; }
+        .inline-group .input { flex:1; max-width:600px; font-family: 'Courier New', monospace; }
+        .panel-header { display:flex; align-items:center; justify-content:space-between; }
+        .path-info { margin-top:4px; color:#aaa; font-size:11px; }
+        .path-row { grid-template-columns: 1fr; row-gap: 6px; }
+        .mapping-section { padding-left: 8px; }
+        .mapping-section .row { grid-template-columns: 120px 1fr; gap: 8px; }
+    </style>
+</head>
+<body>
+    <div class="titlebar">
+        <div class="titlebar-drag-region">
+            <div class="window-title">
+                <span>建表</span>
+            </div>
+        </div>
+        <div class="window-controls">
+            <button class="window-control minimize" id="autoCreateMinBtn">
+                <svg viewBox="0 0 12 12" width="12" height="12"><rect fill="currentColor" width="10" height="1" x="1" y="6"/></svg>
+            </button>
+            <button class="window-control maximize" id="autoCreateMaxBtn">
+                <svg viewBox="0 0 12 12" width="12" height="12"><rect fill="currentColor" width="9" height="9" x="1.5" y="1.5" stroke="currentColor" stroke-width="1" fill="none"/></svg>
+            </button>
+            <button class="window-control close" id="autoCreateCloseBtn">
+                <svg viewBox="0 0 12 12" width="12" height="12"><polygon fill="currentColor" points="11,1.5 10.5,1 6,5.5 1.5,1 1,1.5 5.5,6 1,10.5 1.5,11 6,6.5 10.5,11 11,10.5 6.5,6"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="content">
+            <div class="workspace">
+                <div class="left-pane">
+                    <div class="section">
+                        <h3>选择映射文件（Excel/CSV）</h3>
+                        <div class="row path-row">
+                            <label>文件路径</label>
+                            <div class="inline-group">
+                                <input id="excelPath" class="input" type="text" placeholder="请选择Excel或CSV文件" readonly />
+                                <button class="btn btn-primary" id="selectExcelBtn">选择文件</button>
+                            </div>
+                            <span id="excelInfo" class="path-info"></span>
+                        </div>
+                    </div>
+
+                    <div class="section mapping-section">
+                        <h3>映射关系</h3>
+                        <div class="row">
+                            <label>SCHEMA</label>
+                            <div class="inline-group">
+                                <select id="schemaSheet" class="inline" disabled></select>
+                                <select id="schemaCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label>表名</label>
+                            <div class="inline-group">
+                                <select id="tableSheet" class="inline" disabled></select>
+                                <select id="tableCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label>字段名</label>
+                            <div class="inline-group">
+                                <select id="columnSheet" class="inline" disabled></select>
+                                <select id="columnCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label>字段类型</label>
+                            <div class="inline-group">
+                                <select id="typeSheet" class="inline" disabled></select>
+                                <select id="typeCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label>字段描述</label>
+                            <div class="inline-group">
+                                <select id="commentSheet" class="inline" disabled></select>
+                                <select id="commentCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label>分布键</label>
+                            <input id="distributeKeyInput" class="input" type="text" placeholder="例：UUID,SSID" />
+                        </div>
+                        <div class="row">
+                            <label>最小分区值</label>
+                            <input id="partitionMinInput" class="input" type="text" placeholder="例：202501" />
+                        </div>
+                        <div class="row">
+                            <label>最大分区值</label>
+                            <input id="partitionMaxInput" class="input" type="text" placeholder="例：202601" />
+                        </div>
+                        <div class="row">
+                            <label>表名描述</label>
+                            <div class="inline-group">
+                                <select id="tableCommentSheet" class="inline" disabled></select>
+                                <select id="tableCommentCol" class="inline" disabled></select>
+                            </div>
+                        </div>
+                        <div id="mapWarn" class="warn"></div>
+                    </div>
+                </div>
+
+                <div class="right-pane">
+                    <div class="section sql-panel">
+                        <div class="panel-header">
+                            <h3>建表预览</h3>
+                            <button class="btn btn-success" id="exportSqlBtn">导出SQL到文件</button>
+                        </div>
+                        <div class="sql-preview" id="sqlPreview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auto-create-table-renderer.js"></script>
+</body>
+</html>
